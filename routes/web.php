@@ -5,7 +5,23 @@ use Illuminate\Support\Facades\Route;
 Route::view('/', 'welcome')->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::view('dashboard', 'dashboard')->name('dashboard');
+    Route::livewire('dashboard', 'dashboard')->name('dashboard');
+
+    // Lernprojekte (AppFlow §1.3)
+    Route::livewire('projects', 'projects.project-list')->name('projects.index');
+    Route::livewire('projects/{project}', 'projects.project-overview')->name('projects.show');
+
+    // Dokumente (AppFlow §2.7, §2.8) — scoped bindings enforce parent-child link
+    Route::livewire('projects/{project}/documents', 'documents.document-list')->name('documents.index');
+    Route::livewire('projects/{project}/documents/{document}', 'documents.document-detail')
+        ->scopeBindings()
+        ->name('documents.show');
+
+    // Globaler Upload (AppFlow §2.5)
+    Route::livewire('upload', 'upload.global-upload')->name('upload.index');
+
+    // Papierkorb (AppFlow §2.13)
+    Route::livewire('trash', 'trash.trash-list')->name('trash.index');
 });
 
 require __DIR__.'/settings.php';

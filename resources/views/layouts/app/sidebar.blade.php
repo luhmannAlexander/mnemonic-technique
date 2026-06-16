@@ -3,37 +3,67 @@
     <head>
         @include('partials.head')
     </head>
-    <body class="min-h-screen bg-white dark:bg-zinc-800">
-        <flux:sidebar sticky collapsible="mobile" class="border-e border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900">
+    <body class="min-h-screen bg-bg">
+        @php
+            $uploadCount = \App\Models\UploadStaging::query()
+                ->where('user_id', auth()->id())
+                ->whereNull('confirmed_at')
+                ->where('expires_at', '>', now())
+                ->count();
+        @endphp
+
+        <flux:sidebar sticky collapsible="mobile" class="border-e border-border bg-surface">
             <flux:sidebar.header>
                 <x-app-logo :sidebar="true" href="{{ route('dashboard') }}" wire:navigate />
                 <flux:sidebar.collapse class="lg:hidden" />
             </flux:sidebar.header>
 
             <flux:sidebar.nav>
-                <flux:sidebar.group :heading="__('Platform')" class="grid">
-                    <flux:sidebar.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>
-                        {{ __('Dashboard') }}
+                <flux:sidebar.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>
+                    {{ __('Dashboard') }}
+                </flux:sidebar.item>
+
+                <flux:sidebar.item icon="arrow-up-tray" :href="route('upload.index')" :current="request()->routeIs('upload.*')" :badge="$uploadCount ?: null" wire:navigate>
+                    {{ __('Upload') }}
+                </flux:sidebar.item>
+
+                <flux:sidebar.item icon="folder" :href="route('projects.index')" :current="request()->routeIs('projects.*') || request()->routeIs('documents.*')" wire:navigate>
+                    {{ __('Lernprojekte') }}
+                </flux:sidebar.item>
+
+                <flux:tooltip :content="__('Statistiken folgen in einem späteren Update')" position="right">
+                    <flux:sidebar.item icon="chart-bar" class="cursor-not-allowed opacity-40" aria-disabled="true">
+                        {{ __('Statistiken') }}
                     </flux:sidebar.item>
-                </flux:sidebar.group>
+                </flux:tooltip>
+
+                <flux:sidebar.item icon="trash" :href="route('trash.index')" :current="request()->routeIs('trash.*')" wire:navigate>
+                    {{ __('Papierkorb') }}
+                </flux:sidebar.item>
             </flux:sidebar.nav>
 
             <flux:spacer />
 
             <flux:sidebar.nav>
-                <flux:sidebar.item icon="folder-git-2" href="https://github.com/laravel/livewire-starter-kit" target="_blank">
-                    {{ __('Repository') }}
+                <flux:sidebar.item icon="cog-6-tooth" :href="route('profile.edit')" :current="request()->routeIs('profile.*') || request()->routeIs('security.*') || request()->routeIs('appearance.*')" wire:navigate>
+                    {{ __('Einstellungen') }}
                 </flux:sidebar.item>
 
-                <flux:sidebar.item icon="book-open-text" href="https://laravel.com/docs/starter-kits#livewire" target="_blank">
-                    {{ __('Documentation') }}
-                </flux:sidebar.item>
+                <form method="POST" action="{{ route('logout') }}" class="w-full">
+                    @csrf
+                    <flux:sidebar.item as="button" type="submit" icon="arrow-right-start-on-rectangle" class="w-full cursor-pointer" data-test="logout-button">
+                        {{ __('Logout') }}
+                    </flux:sidebar.item>
+                </form>
             </flux:sidebar.nav>
 
-            <x-desktop-user-menu class="hidden lg:block" :name="auth()->user()->name" />
+            {{-- User email display only — no menu needed in v1 (AppFlow §1.1) --}}
+            <div class="truncate px-3 py-2 text-sm text-text-secondary" title="{{ auth()->user()->email }}">
+                {{ auth()->user()->email }}
+            </div>
         </flux:sidebar>
 
-        <!-- Mobile User Menu -->
+        <!-- Mobile header -->
         <flux:header class="lg:hidden">
             <flux:sidebar.toggle class="lg:hidden" icon="bars-2" inset="left" />
 
@@ -65,8 +95,8 @@
                     <flux:menu.separator />
 
                     <flux:menu.radio.group>
-                        <flux:menu.item :href="route('profile.edit')" icon="cog" wire:navigate>
-                            {{ __('Settings') }}
+                        <flux:menu.item :href="route('profile.edit')" icon="cog-6-tooth" wire:navigate>
+                            {{ __('Einstellungen') }}
                         </flux:menu.item>
                     </flux:menu.radio.group>
 
@@ -81,7 +111,7 @@
                             class="w-full cursor-pointer"
                             data-test="logout-button"
                         >
-                            {{ __('Log out') }}
+                            {{ __('Logout') }}
                         </flux:menu.item>
                     </form>
                 </flux:menu>

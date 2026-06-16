@@ -17,8 +17,9 @@ export default defineConfig({
             ],
             refresh: true,
             fonts: [
-                bunny('Instrument Sans', {
-                    weights: [400, 500, 600],
+                // Self-hosted Inter via Bunny Fonts (no Google CDN) — ContentGuidelines §3.
+                bunny('Inter', {
+                    weights: [400, 500, 600, 700],
                 }),
             ],
         }),

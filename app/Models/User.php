@@ -7,6 +7,8 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
@@ -58,5 +60,41 @@ class User extends Authenticatable implements PasskeyUser
             ->take(2)
             ->map(fn ($word) => Str::substr($word, 0, 1))
             ->implode('');
+    }
+
+    /** @return HasOne<UserSetting, $this> */
+    public function settings(): HasOne
+    {
+        return $this->hasOne(UserSetting::class);
+    }
+
+    /** @return HasMany<Project, $this> */
+    public function projects(): HasMany
+    {
+        return $this->hasMany(Project::class);
+    }
+
+    /** @return HasMany<Document, $this> */
+    public function documents(): HasMany
+    {
+        return $this->hasMany(Document::class);
+    }
+
+    /** @return HasMany<UploadStaging, $this> */
+    public function uploadStagings(): HasMany
+    {
+        return $this->hasMany(UploadStaging::class);
+    }
+
+    /** @return HasMany<SessionLog, $this> */
+    public function sessionLogs(): HasMany
+    {
+        return $this->hasMany(SessionLog::class);
+    }
+
+    /** @return HasMany<Attempt, $this> */
+    public function attempts(): HasMany
+    {
+        return $this->hasMany(Attempt::class);
     }
 }

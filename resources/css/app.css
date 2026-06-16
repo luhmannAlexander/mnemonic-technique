@@ -9,30 +9,52 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    /* Typography — Inter, self-hosted via Bunny Fonts (vite.config.js). ContentGuidelines §3. */
+    --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
 
-    --color-zinc-50: #fafafa;
-    --color-zinc-100: #f5f5f5;
-    --color-zinc-200: #e5e5e5;
-    --color-zinc-300: #d4d4d4;
-    --color-zinc-400: #a3a3a3;
-    --color-zinc-500: #737373;
-    --color-zinc-600: #525252;
-    --color-zinc-700: #404040;
-    --color-zinc-800: #262626;
-    --color-zinc-900: #171717;
-    --color-zinc-950: #0a0a0a;
+    /* === Mnemonic design tokens (ContentGuidelines §2) — dark mode only === */
 
-    --color-accent: var(--color-neutral-800);
-    --color-accent-content: var(--color-neutral-800);
-    --color-accent-foreground: var(--color-white);
+    /* 2.1 Neutral surfaces & text */
+    --color-bg: #0F0F14;
+    --color-bg-focus: #0A0A0E;
+    --color-surface: #17171F;
+    --color-surface-raised: #1E1E29;
+    --color-border: #2A2A38;
+    --color-text: #F4F4F6;
+    --color-text-secondary: #A6A6B3;
+    --color-text-muted: #6E6E7A;
+
+    /* 2.2 Brand — violet = action, green = progress */
+    --color-primary: #8B5CF6;
+    --color-primary-hover: #A78BFA;
+    --color-primary-muted: #8B5CF626; /* 15% alpha */
+
+    /* 2.3 Semantic feedback. NOTE: ContentGuidelines calls the green token
+       --color-accent, but Flux reserves --color-accent for its action colour.
+       To keep "violet = action", green lives under --color-success (same hex)
+       and is used wherever the design says accent/green. See DESIGN-OPEN-QUESTIONS. */
+    --color-success: #34D399;
+    --color-warning: #FBBF24;
+    --color-danger: #F87171;
+    --color-info: #60A5FA;
+
+    /* 2.4 Knowledge-type colours (cards) */
+    --color-type-fact: #60A5FA;
+    --color-type-concept: #A78BFA;
+    --color-type-relation: #22D3EE;
+    --color-type-vocab: #F472B6;
+
+    /* Flux action colour → primary violet (buttons, links, active nav, focus rings) */
+    --color-accent: var(--color-primary);
+    --color-accent-content: var(--color-primary);
+    --color-accent-foreground: #0F0F14;
 }
 
 @layer theme {
     .dark {
-        --color-accent: var(--color-white);
-        --color-accent-content: var(--color-white);
-        --color-accent-foreground: var(--color-neutral-800);
+        --color-accent: var(--color-primary);
+        --color-accent-content: var(--color-primary-hover);
+        --color-accent-foreground: #0F0F14;
     }
 }
 
@@ -43,7 +65,71 @@
     ::before,
     ::backdrop,
     ::file-selector-button {
-        border-color: var(--color-gray-200, currentColor);
+        border-color: var(--color-border, currentColor);
+    }
+
+    body {
+        background-color: var(--color-bg);
+        color: var(--color-text);
+    }
+
+    /* Tabular numerals for stats/streaks (ContentGuidelines §3) */
+    .tabular-nums {
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* Focus ring everywhere — never remove without replacement (ContentGuidelines §9.2) */
+    :focus-visible {
+        outline: 2px solid var(--color-primary);
+        outline-offset: 2px;
+    }
+}
+
+/* Read-only rendered markdown (document detail) — token-based, minimal */
+.markdown-body {
+    line-height: 1.6;
+}
+.markdown-body h1 { font-size: 1.5rem; font-weight: 700; margin: 1rem 0 0.5rem; }
+.markdown-body h2 { font-size: 1.25rem; font-weight: 600; margin: 1rem 0 0.5rem; }
+.markdown-body h3 { font-size: 1.125rem; font-weight: 600; margin: 0.75rem 0 0.5rem; }
+.markdown-body p { margin: 0.5rem 0; }
+.markdown-body ul { list-style: disc; padding-left: 1.5rem; margin: 0.5rem 0; }
+.markdown-body ol { list-style: decimal; padding-left: 1.5rem; margin: 0.5rem 0; }
+.markdown-body li { margin: 0.25rem 0; }
+.markdown-body a { color: var(--color-primary-hover); text-decoration: underline; }
+.markdown-body strong { font-weight: 600; }
+.markdown-body code {
+    font-family: ui-monospace, monospace;
+    font-size: 0.875em;
+    background-color: var(--color-bg);
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+}
+.markdown-body pre {
+    background-color: var(--color-bg);
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    overflow-x: auto;
+    margin: 0.5rem 0;
+}
+.markdown-body pre code { background: none; padding: 0; }
+.markdown-body blockquote {
+    border-left: 3px solid var(--color-border);
+    padding-left: 0.75rem;
+    color: var(--color-text-secondary);
+    margin: 0.5rem 0;
+}
+
+/* Reduced motion is mandatory (ContentGuidelines §9.1) */
+@media (prefers-reduced-motion: reduce) {
+
+    *,
+    ::before,
+    ::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
     }
 }
 
