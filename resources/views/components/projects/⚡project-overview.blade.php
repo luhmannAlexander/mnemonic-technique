@@ -64,9 +64,8 @@ new class extends Component
             <flux:text class="text-text">
                 {{ trans_choice('{1}1 neue Karte wurde extrahiert ✨|[2,*]:count neue Karten wurden extrahiert ✨', $this->stats['drafts'], ['count' => $this->stats['drafts']]) }}
             </flux:text>
-            <flux:tooltip :content="__('Review folgt mit der KI-Integration')">
-                <flux:button variant="primary" icon="clipboard-document-check" disabled>{{ __('Jetzt prüfen') }}</flux:button>
-            </flux:tooltip>
+            <flux:button variant="primary" icon="clipboard-document-check"
+                :href="route('review.index', $project)" wire:navigate>{{ __('Jetzt prüfen') }}</flux:button>
         </div>
     @endif
 
@@ -82,23 +81,25 @@ new class extends Component
             </flux:text>
         </a>
 
-        {{-- Karten (M2) --}}
-        <div class="flex cursor-not-allowed flex-col gap-2 rounded-2xl bg-surface p-4 opacity-40 shadow-md shadow-black/40" aria-disabled="true">
+        {{-- Karten --}}
+        <a href="{{ route('cards.index', $project) }}" wire:navigate
+            class="flex flex-col gap-2 rounded-2xl bg-surface p-4 shadow-md shadow-black/40 transition hover:bg-surface-raised">
             <flux:icon.rectangle-stack class="size-6 text-text-secondary" />
             <flux:heading size="lg">{{ __('Karten') }}</flux:heading>
             <flux:text class="text-sm text-text-secondary">
                 {{ trans_choice('{0}Keine Karten|{1}1 Karte|[2,*]:count Karten', $this->stats['approved'], ['count' => $this->stats['approved']]) }}
             </flux:text>
-        </div>
+        </a>
 
         {{-- Review (M2) — highlighted when drafts exist --}}
-        <div class="flex cursor-not-allowed flex-col gap-2 rounded-2xl p-4 opacity-40 shadow-md shadow-black/40 {{ $this->stats['drafts'] > 0 ? 'bg-primary-muted' : 'bg-surface' }}" aria-disabled="true">
+        <a href="{{ route('review.index', $project) }}" wire:navigate
+            class="flex flex-col gap-2 rounded-2xl p-4 shadow-md shadow-black/40 transition hover:bg-surface-raised {{ $this->stats['drafts'] > 0 ? 'bg-primary-muted' : 'bg-surface' }}">
             <flux:icon.clipboard-document-check class="size-6 text-text-secondary" />
             <flux:heading size="lg">{{ __('Review') }}</flux:heading>
             <flux:text class="text-sm text-text-secondary">
                 {{ trans_choice('{0}Nichts zu prüfen|{1}1 Entwurf|[2,*]:count Entwürfe', $this->stats['drafts'], ['count' => $this->stats['drafts']]) }}
             </flux:text>
-        </div>
+        </a>
 
         {{-- Statistik (M4) --}}
         <div class="flex cursor-not-allowed flex-col gap-2 rounded-2xl bg-surface p-4 opacity-40 shadow-md shadow-black/40" aria-disabled="true">

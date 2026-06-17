@@ -1,6 +1,7 @@
 <?php
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use App\Contracts\LLMServiceInterface;
+use App\Services\FakeLLMService;
 use Tests\TestCase;
 
 /*
@@ -15,7 +16,11 @@ use Tests\TestCase;
 */
 
 pest()->extend(TestCase::class)
- // ->use(RefreshDatabase::class)
+    ->beforeEach(function () {
+        // Feature tests never touch the real model [PRD K-6]; bind the fake so
+        // any code resolving LLMServiceInterface gets deterministic output.
+        $this->app->bind(LLMServiceInterface::class, FakeLLMService::class);
+    })
     ->in('Feature');
 
 /*

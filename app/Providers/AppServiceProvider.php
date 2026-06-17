@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Contracts\LLMServiceInterface;
 use App\Models\Document;
 use App\Models\KnowledgeUnit;
 use App\Models\Project;
@@ -17,6 +18,7 @@ use App\Policies\KnowledgeUnitPolicy;
 use App\Policies\ProjectPolicy;
 use App\Policies\SessionPolicy;
 use App\Policies\UploadStagingPolicy;
+use App\Services\OllamaLLMService;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -31,7 +33,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(LLMServiceInterface::class, fn (): OllamaLLMService => new OllamaLLMService(
+            (string) config('services.ollama.url'),
+            (string) config('services.ollama.model'),
+            (int) config('services.ollama.timeout_extract'),
+            (int) config('services.ollama.timeout_grade'),
+        ));
     }
 
     /**

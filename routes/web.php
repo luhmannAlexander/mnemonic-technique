@@ -17,6 +17,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->scopeBindings()
         ->name('documents.show');
 
+    // Karten – interaktive Kartenansicht (AppFlow §2.10)
+    Route::livewire('projects/{project}/cards', 'cards.card-list')->name('cards.index');
+
+    // Review der Draft-Einheiten (AppFlow §2.9)
+    Route::livewire('projects/{project}/review', 'review.review-list')->name('review.index');
+
     // Globaler Upload (AppFlow §2.5)
     Route::livewire('upload', 'upload.global-upload')->name('upload.index');
 
