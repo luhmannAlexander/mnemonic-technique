@@ -102,10 +102,11 @@ new class extends Component
         </a>
 
         {{-- Statistik (M4) --}}
-        <div class="flex cursor-not-allowed flex-col gap-2 rounded-2xl bg-surface p-4 opacity-40 shadow-md shadow-black/40" aria-disabled="true">
+        <a href="{{ route('stats.project', $project) }}" wire:navigate
+            class="flex flex-col gap-2 rounded-2xl bg-surface p-4 shadow-md shadow-black/40 transition hover:bg-surface-raised">
             <flux:icon.chart-bar class="size-6 text-text-secondary" />
             <flux:heading size="lg">{{ __('Statistik') }}</flux:heading>
-            <flux:text class="text-sm text-text-secondary">{{ __('Bald verfügbar') }}</flux:text>
-        </div>
+            <flux:text class="text-sm text-text-secondary">{{ __('Behaltensquote & Themen') }}</flux:text>
+        </a>
     </div>
 </div>

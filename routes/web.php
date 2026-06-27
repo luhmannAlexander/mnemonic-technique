@@ -63,6 +63,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::livewire('practice/{session}', 'practice.practice-session')->name('practice.session');
     Route::livewire('practice/{session}/summary', 'practice.session-summary')->name('practice.summary');
+
+    // Statistiken (AppFlow §2.12)
+    Route::livewire('stats', 'stats.global-stats')->name('stats.index');
+    Route::livewire('projects/{project}/stats', 'stats.project-stats')->name('stats.project');
 });
 
 require __DIR__.'/settings.php';

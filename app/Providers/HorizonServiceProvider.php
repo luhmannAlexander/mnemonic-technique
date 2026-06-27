@@ -27,10 +27,8 @@ class HorizonServiceProvider extends HorizonApplicationServiceProvider
      */
     protected function gate(): void
     {
-        Gate::define('viewHorizon', function ($user = null) {
-            return in_array(optional($user)->email, [
-                //
-            ]);
-        });
+        // Any authenticated user may view the queue dashboard (ImplementationPlan §4.5).
+        // This is a single-tenant local-first app; tighten here if that changes.
+        Gate::define('viewHorizon', fn ($user = null): bool => $user !== null);
     }
 }

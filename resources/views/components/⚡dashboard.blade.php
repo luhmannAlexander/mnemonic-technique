@@ -4,6 +4,8 @@ use App\Models\KnowledgeUnit;
 use App\Models\Project;
 use App\Models\ReviewState;
 use App\Models\SessionLog;
+use App\Services\StatsService;
+use App\Services\StreakService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Computed;
@@ -13,7 +15,7 @@ use Livewire\Component;
 new #[Title('Dashboard')] class extends Component
 {
     /**
-     * Owned projects with their approved-card count.
+     * Owned projects with their approved- and draft-card counts.
      *
      * @return \Illuminate\Support\Collection<int, Project>
      */
@@ -24,9 +26,54 @@ new #[Title('Dashboard')] class extends Component
             ->where('user_id', Auth::id())
             ->withCount([
                 'knowledgeUnits as approved_cards_count' => fn (Builder $q) => $q->where('unit_status', 'approved'),
+                'knowledgeUnits as draft_cards_count' => fn (Builder $q) => $q->where('unit_status', 'draft'),
             ])
             ->latest()
             ->get();
+    }
+
+    /**
+     * Due-card counts keyed by project id (one grouped query for the whole list).
+     *
+     * @return \Illuminate\Support\Collection<int, int>
+     */
+    #[Computed]
+    public function dueByProject()
+    {
+        return ReviewState::query()
+            ->where('review_states.user_id', Auth::id())
+            ->where('review_states.due_at', '<=', now())
+            ->join('knowledge_units', 'knowledge_units.id', '=', 'review_states.knowledge_unit_id')
+            ->whereNull('knowledge_units.deleted_at')
+            ->where('knowledge_units.unit_status', 'approved')
+            ->groupBy('knowledge_units.project_id')
+            ->selectRaw('knowledge_units.project_id as pid, COUNT(*) as c')
+            ->pluck('c', 'pid');
+    }
+
+    #[Computed]
+    public function currentStreak(): int
+    {
+        return app(StreakService::class)->current(Auth::id());
+    }
+
+    #[Computed]
+    public function longestStreak(): int
+    {
+        return app(StreakService::class)->longest(Auth::id());
+    }
+
+    #[Computed]
+    public function retention(): float
+    {
+        return app(StatsService::class)->currentRetention(Auth::id());
+    }
+
+    /** @return list<array{date: string, total: int, correct: int, rate: float|null}> */
+    #[Computed]
+    public function trend(): array
+    {
+        return app(StatsService::class)->retentionTrend(Auth::id(), days: 30);
     }
 
     /** Cards due today across all projects (approved, non-deleted units only). */
@@ -161,6 +208,29 @@ new #[Title('Dashboard')] class extends Component
             @endif
         </div>
 
+        {{-- Streak, Behaltensquote & Trend (AppFlow §2.2, ImplementationPlan §4.4) --}}
+        @if ($this->trend !== [])
+            <div class="mb-6 grid gap-4 md:grid-cols-3">
+                <div class="flex flex-col gap-1 rounded-2xl bg-surface p-6 shadow-md shadow-black/40">
+                    <flux:text class="text-sm text-text-secondary">{{ __('Aktueller Streak') }}</flux:text>
+                    <span class="text-3xl font-bold">{{ trans_choice('{0}0 Tage|{1}1 Tag|[2,*]:count Tage', $this->currentStreak, ['count' => $this->currentStreak]) }}</span>
+                    <flux:text class="text-xs text-text-muted">{{ __('Längster: :n', ['n' => $this->longestStreak]) }}</flux:text>
+                </div>
+                <div class="flex flex-col gap-1 rounded-2xl bg-surface p-6 shadow-md shadow-black/40">
+                    <flux:text class="text-sm text-text-secondary">{{ __('Behaltensquote') }}</flux:text>
+                    <span class="text-3xl font-bold text-success">{{ $this->retention }} %</span>
+                    <flux:link :href="route('stats.index')" wire:navigate class="text-xs">{{ __('Alle Statistiken') }}</flux:link>
+                </div>
+                <div class="rounded-2xl bg-surface p-4 shadow-md shadow-black/40 md:col-span-1">
+                    <x-retention-chart
+                        :labels="array_column($this->trend, 'date')"
+                        :values="array_column($this->trend, 'rate')"
+                        class="h-28 w-full"
+                    />
+                </div>
+            </div>
+        @endif
+
         {{-- Lernprojekte (ContentGuidelines §5.3 glossary) --}}
         <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             @foreach ($this->projects as $project)
@@ -173,10 +243,20 @@ new #[Title('Dashboard')] class extends Component
                     @if ($project->description)
                         <flux:text class="line-clamp-2 text-sm text-text-secondary">{{ $project->description }}</flux:text>
                     @endif
-                    <div class="mt-auto">
+                    <div class="mt-auto flex flex-wrap gap-2">
                         <flux:badge size="sm" color="zinc" icon="rectangle-stack">
                             {{ trans_choice('{0}Keine Karten|{1}1 Karte|[2,*]:count Karten', $project->approved_cards_count, ['count' => $project->approved_cards_count]) }}
                         </flux:badge>
+                        @if (($this->dueByProject[$project->id] ?? 0) > 0)
+                            <flux:badge size="sm" color="green" icon="academic-cap">
+                                {{ __(':n fällig', ['n' => $this->dueByProject[$project->id]]) }}
+                            </flux:badge>
+                        @endif
+                        @if ($project->draft_cards_count > 0)
+                            <flux:badge size="sm" color="amber" icon="inbox">
+                                {{ trans_choice('{1}1 zu prüfen|[2,*]:count zu prüfen', $project->draft_cards_count) }}
+                            </flux:badge>
+                        @endif
                     </div>
                 </a>
             @endforeach

@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\SessionLog;
+use App\Services\StreakService;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
@@ -16,6 +17,22 @@ new #[Title('Ergebnis')] class extends Component
         abort_unless($session->user_id === Auth::id(), 404);
 
         $this->session = $session;
+    }
+
+    #[Computed]
+    public function streak(): int
+    {
+        return app(StreakService::class)->current(Auth::id());
+    }
+
+    /** True when this is the day's first finished session — triggers the streak flourish (AppFlow §2.11). */
+    #[Computed]
+    public function isFirstToday(): bool
+    {
+        return SessionLog::where('user_id', Auth::id())
+            ->where('status', 'finished')
+            ->whereDate('finished_at', today())
+            ->count() === 1;
     }
 
     /**
@@ -55,6 +72,22 @@ new #[Title('Ergebnis')] class extends Component
                     'total' => $session->questions_total,
                 ]) }}
             </p>
+
+            {{-- Streak-Flourish bei der ersten Session des Tages (AppFlow §2.11) --}}
+            @if ($this->isFirstToday && $this->streak > 0)
+                <div
+                    x-data="{}"
+                    x-init="$el.animate([
+                        { transform: 'scale(0.8)', opacity: 0 },
+                        { transform: 'scale(1.05)', opacity: 1, offset: 0.7 },
+                        { transform: 'scale(1)', opacity: 1 },
+                    ], { duration: 500, easing: 'ease-out' })"
+                    class="flex items-center gap-2 rounded-full bg-surface-raised px-4 py-1.5"
+                >
+                    <flux:icon.fire variant="solid" class="size-5 text-warning" />
+                    <span class="font-semibold">{{ trans_choice('{1}Streak: 1 Tag|[2,*]Streak: :count Tage', $this->streak, ['count' => $this->streak]) }}</span>
+                </div>
+            @endif
 
             <div class="flex flex-wrap items-center justify-center gap-2 text-sm">
                 @if ($session->questions_partial > 0)

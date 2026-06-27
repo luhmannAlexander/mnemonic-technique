@@ -31,11 +31,9 @@
                     {{ __('Lernprojekte') }}
                 </flux:sidebar.item>
 
-                <flux:tooltip :content="__('Statistiken folgen in einem späteren Update')" position="right">
-                    <flux:sidebar.item icon="chart-bar" class="cursor-not-allowed opacity-40" aria-disabled="true">
-                        {{ __('Statistiken') }}
-                    </flux:sidebar.item>
-                </flux:tooltip>
+                <flux:sidebar.item icon="chart-bar" :href="route('stats.index')" :current="request()->routeIs('stats.*')" wire:navigate>
+                    {{ __('Statistiken') }}
+                </flux:sidebar.item>
 
                 <flux:sidebar.item icon="trash" :href="route('trash.index')" :current="request()->routeIs('trash.*')" wire:navigate>
                     {{ __('Papierkorb') }}

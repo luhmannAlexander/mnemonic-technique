@@ -5,6 +5,7 @@ use App\Jobs\PrioritiseReviewJob;
 use App\Models\Attempt;
 use App\Models\SessionLog;
 use App\Models\SessionQuestion;
+use App\Services\StreakService;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -132,6 +133,9 @@ new #[Layout('layouts.focus')] #[Title('Übung')] class extends Component
     public function finish(): void
     {
         $this->session->update(['status' => 'finished', 'finished_at' => now()]);
+
+        // A finished session may extend the streak — drop the cached value (§4.1).
+        app(StreakService::class)->invalidate($this->session->user_id);
 
         $this->redirectRoute('practice.summary', $this->session, navigate: true);
     }

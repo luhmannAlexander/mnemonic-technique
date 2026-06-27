@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Attempt;
 use App\Models\KnowledgeUnit;
 use App\Models\Project;
 use App\Models\ReviewState;
@@ -96,4 +97,32 @@ it('does not surface another user\'s due cards', function () {
     Livewire::actingAs($this->user)
         ->test('dashboard')
         ->assertSet('dueCount', 0);
+});
+
+it('shows the streak and retention row once attempts exist', function () {
+    Attempt::factory(4)->create(['user_id' => $this->user->id, 'result' => 'correct']);
+    Attempt::factory(1)->create(['user_id' => $this->user->id, 'result' => 'wrong']);
+    SessionLog::factory()->for($this->user)->create([
+        'status' => 'finished', 'finished_at' => now(),
+    ]);
+
+    Livewire::actingAs($this->user)
+        ->test('dashboard')
+        ->assertSet('currentStreak', 1)
+        ->assertSet('retention', 80.0)
+        ->assertSee('Aktueller Streak')
+        ->assertSee('Behaltensquote');
+});
+
+it('shows per-project due and draft badges', function () {
+    dashboardUnit($this->project, $this->user); // approved + due
+    KnowledgeUnit::factory()->create([
+        'project_id' => $this->project->id, 'user_id' => $this->user->id,
+        'document_id' => null, 'unit_status' => 'draft',
+    ]);
+
+    Livewire::actingAs($this->user)
+        ->test('dashboard')
+        ->assertSee('1 fällig')
+        ->assertSee('1 zu prüfen');
 });
