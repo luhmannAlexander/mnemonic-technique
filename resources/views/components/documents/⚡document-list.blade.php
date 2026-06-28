@@ -46,7 +46,10 @@ new class extends Component
             ->exists();
     }
 
-    public function upload(): void
+    // NB: must NOT be named upload()/uploadMultiple()/removeUpload() — those are
+    // reserved Livewire $wire JS magics; wire:submit would hit the JS file
+    // uploader instead of this server action and crash on an undefined file.
+    public function save(): void
     {
         $this->validate([
             'files' => ['required', 'array'],
@@ -130,7 +133,7 @@ new class extends Component
     <flux:heading size="xl" level="1" class="mb-6">{{ __('Dokumente') }}</flux:heading>
 
     {{-- Upload area (AppFlow §2.7) --}}
-    <form wire:submit="upload" class="mb-8 flex flex-col gap-3 rounded-2xl bg-surface p-4 shadow-md shadow-black/40">
+    <form wire:submit="save" class="mb-8 flex flex-col gap-3 rounded-2xl bg-surface p-4 shadow-md shadow-black/40">
         <flux:input
             type="file"
             wire:model="files"

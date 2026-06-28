@@ -22,7 +22,7 @@ it('rejects non-markdown files', function () {
     Livewire::actingAs($this->user)
         ->test('documents.document-list', ['project' => $this->project])
         ->set('files', [UploadedFile::fake()->create('notes.pdf', 100)])
-        ->call('upload')
+        ->call('save')
         ->assertHasErrors(['files.0']);
 
     expect(Document::count())->toBe(0);
@@ -32,7 +32,7 @@ it('rejects files over 2MB', function () {
     Livewire::actingAs($this->user)
         ->test('documents.document-list', ['project' => $this->project])
         ->set('files', [UploadedFile::fake()->create('gross.md', 2049)])
-        ->call('upload')
+        ->call('save')
         ->assertHasErrors(['files.0']);
 
     expect(Document::count())->toBe(0);
@@ -42,7 +42,7 @@ it('stores an uploaded markdown document as pending and dispatches extraction', 
     Livewire::actingAs($this->user)
         ->test('documents.document-list', ['project' => $this->project])
         ->set('files', [UploadedFile::fake()->createWithContent('kapitel-1.md', "# Titel\nInhalt")])
-        ->call('upload')
+        ->call('save')
         ->assertHasNoErrors();
 
     $document = Document::first();

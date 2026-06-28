@@ -23,7 +23,7 @@ it('stages an uploaded file and dispatches classification', function () {
     Livewire::actingAs($this->user)
         ->test('upload.global-upload')
         ->set('files', [UploadedFile::fake()->createWithContent('notizen.md', '# Inhalt')])
-        ->call('upload')
+        ->call('save')
         ->assertHasNoErrors();
 
     $staging = UploadStaging::first();
