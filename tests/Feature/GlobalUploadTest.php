@@ -103,3 +103,94 @@ it('cannot touch another user\'s staging', function () {
 
     expect(UploadStaging::find($staging->id))->not->toBeNull();
 });
+
+it('shows the AI project suggestions once classification succeeds', function () {
+    UploadStaging::factory()->for($this->user)->create([
+        'classification_status' => 'awaiting_confirmation',
+        'ai_suggestion_payload' => ['suggestions' => [
+            ['type' => 'new', 'project_id' => null, 'name' => 'Linux Pakete', 'reason' => 'Passt zum Inhalt.'],
+        ]],
+    ]);
+
+    Livewire::actingAs($this->user)
+        ->test('upload.global-upload')
+        ->assertSee('Linux Pakete')
+        ->assertSee('Passt zum Inhalt.')
+        ->assertDontSee('Automatische Zuordnung gerade nicht verfügbar');
+});
+
+it('accepts a new-project AI suggestion and stages it for confirmation', function () {
+    $staging = UploadStaging::factory()->for($this->user)->create([
+        'classification_status' => 'awaiting_confirmation',
+        'ai_suggestion_payload' => ['suggestions' => [
+            ['type' => 'new', 'project_id' => null, 'name' => 'Linux Pakete', 'reason' => 'x'],
+        ]],
+    ]);
+
+    Livewire::actingAs($this->user)
+        ->test('upload.global-upload')
+        ->call('acceptSuggestion', $staging->id, 0);
+
+    $fresh = $staging->fresh();
+    expect($fresh->assigned_project_name)->toBe('Linux Pakete')
+        ->and($fresh->assigned_project_id)->toBeNull()
+        ->and($fresh->classification_status)->toBe('awaiting_confirmation');
+});
+
+it('accepts an existing-project AI suggestion', function () {
+    $project = Project::factory()->for($this->user)->create(['name' => 'Linux']);
+    $staging = UploadStaging::factory()->for($this->user)->create([
+        'classification_status' => 'awaiting_confirmation',
+        'ai_suggestion_payload' => ['suggestions' => [
+            ['type' => 'existing', 'project_id' => $project->id, 'name' => null, 'reason' => 'x'],
+        ]],
+    ]);
+
+    Livewire::actingAs($this->user)
+        ->test('upload.global-upload')
+        ->call('acceptSuggestion', $staging->id, 0);
+
+    $fresh = $staging->fresh();
+    expect($fresh->assigned_project_id)->toBe($project->id)
+        ->and($fresh->assigned_project_name)->toBe('Linux');
+});
+
+it('rejects an AI suggestion pointing at a project the user does not own', function () {
+    $stranger = Project::factory()->for(User::factory())->create();
+    $staging = UploadStaging::factory()->for($this->user)->create([
+        'classification_status' => 'awaiting_confirmation',
+        'ai_suggestion_payload' => ['suggestions' => [
+            ['type' => 'existing', 'project_id' => $stranger->id, 'name' => null, 'reason' => 'x'],
+        ]],
+    ]);
+
+    Livewire::actingAs($this->user)
+        ->test('upload.global-upload')
+        ->call('acceptSuggestion', $staging->id, 0)
+        ->assertStatus(404);
+
+    expect($staging->fresh()->assigned_project_id)->toBeNull();
+});
+
+it('polls and shows a classifying state while the AI is still working', function () {
+    UploadStaging::factory()->for($this->user)->create([
+        'classification_status' => 'classifying',
+    ]);
+
+    Livewire::actingAs($this->user)
+        ->test('upload.global-upload')
+        ->assertSee('Wird automatisch zugeordnet')
+        ->assertSeeHtml('wire:poll')
+        ->assertDontSee('Automatische Zuordnung gerade nicht verfügbar');
+});
+
+it('falls back to manual assignment when classification failed', function () {
+    UploadStaging::factory()->for($this->user)->create([
+        'classification_status' => 'failed',
+        'classification_error' => 'LLM down',
+    ]);
+
+    Livewire::actingAs($this->user)
+        ->test('upload.global-upload')
+        ->assertSee('Automatische Zuordnung gerade nicht verfügbar');
+});

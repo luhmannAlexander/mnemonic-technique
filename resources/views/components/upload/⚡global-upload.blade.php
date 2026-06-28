@@ -49,6 +49,15 @@ new #[Title('Upload')] class extends Component
         return Project::query()->where('user_id', Auth::id())->orderBy('name')->get();
     }
 
+    /** True while any staging is still being classified — drives wire:poll. */
+    #[Computed]
+    public function hasPendingClassification(): bool
+    {
+        return $this->stagings->contains(
+            fn (UploadStaging $s): bool => in_array($s->classification_status, ['pending', 'classifying'], true),
+        );
+    }
+
     // NB: must NOT be named upload()/uploadMultiple()/removeUpload() — those are
     // reserved Livewire $wire JS magics; wire:submit would hit the JS file
     // uploader instead of this server action and crash on an undefined file.
@@ -103,6 +112,38 @@ new #[Title('Upload')] class extends Component
             $staging->update([
                 'assigned_project_id' => $project->id,
                 'assigned_project_name' => $project->name,
+                'classification_status' => 'awaiting_confirmation',
+            ]);
+        }
+
+        unset($this->stagings);
+    }
+
+    /** Apply one of the KI suggestions (ImplementationPlan §2.4) for the user to confirm. */
+    public function acceptSuggestion(int $id, int $index): void
+    {
+        $staging = $this->ownedStagingOrFail($id);
+
+        $suggestion = data_get($staging->ai_suggestion_payload, "suggestions.{$index}");
+        abort_if(! is_array($suggestion), 404);
+
+        if (($suggestion['type'] ?? null) === 'existing') {
+            // Never trust an LLM-provided id — it must be one of the user's own projects.
+            $project = Project::where('user_id', Auth::id())->find((int) ($suggestion['project_id'] ?? 0));
+            abort_unless($project !== null, 404);
+
+            $staging->update([
+                'assigned_project_id' => $project->id,
+                'assigned_project_name' => $project->name,
+                'classification_status' => 'awaiting_confirmation',
+            ]);
+        } else {
+            $name = trim((string) ($suggestion['name'] ?? ''));
+            abort_if($name === '', 404);
+
+            $staging->update([
+                'assigned_project_id' => null,
+                'assigned_project_name' => $name,
                 'classification_status' => 'awaiting_confirmation',
             ]);
         }
@@ -192,8 +233,13 @@ new #[Title('Upload')] class extends Component
             <flux:button size="sm" variant="primary" wire:click="confirmAll">{{ __('Alle bestätigen') }}</flux:button>
         </div>
 
-        <div class="flex flex-col gap-3">
+        {{-- Auto-refresh while the KI is still classifying any upload (no #[Poll] attr in this build). --}}
+        <div class="flex flex-col gap-3" @if ($this->hasPendingClassification) wire:poll.3s @endif>
             @foreach ($this->stagings as $staging)
+                @php
+                    $assigned = $staging->assigned_project_id !== null || filled($staging->assigned_project_name);
+                    $suggestions = data_get($staging->ai_suggestion_payload, 'suggestions', []);
+                @endphp
                 <div class="flex flex-col gap-3 rounded-2xl bg-surface p-4 shadow-md shadow-black/40" wire:key="staging-{{ $staging->id }}">
                     <div class="flex items-center gap-2">
                         <flux:icon.document-text class="size-4 shrink-0 text-text-secondary" />
@@ -201,12 +247,14 @@ new #[Title('Upload')] class extends Component
                         <flux:button size="sm" variant="ghost" icon="trash" :aria-label="__('Upload verwerfen')" wire:click="discard({{ $staging->id }})" />
                     </div>
 
-                    {{-- M1: automatic classification is unavailable → manual fallback (AppFlow §2.5) --}}
-                    <flux:text class="text-sm text-text-secondary">
-                        {{ __('Automatische Zuordnung gerade nicht verfügbar – wähle ein Lernprojekt.') }}
-                    </flux:text>
-
-                    @if ($staging->classification_status === 'awaiting_confirmation')
+                    @if (in_array($staging->classification_status, ['pending', 'classifying'], true))
+                        {{-- KI is still working — the list auto-refreshes via wire:poll above. --}}
+                        <div class="flex items-center gap-2 text-sm text-text-secondary">
+                            <flux:icon.arrow-path class="size-4 animate-spin" />
+                            {{ __('Wird automatisch zugeordnet …') }}
+                        </div>
+                    @elseif ($assigned)
+                        {{-- A project is chosen (KI-Vorschlag übernommen oder manuell) → bestätigen. --}}
                         <div class="flex flex-wrap items-center gap-3">
                             <flux:badge size="sm" color="violet" icon="folder">{{ $staging->assigned_project_name }}</flux:badge>
                             <flux:spacer />
@@ -214,8 +262,33 @@ new #[Title('Upload')] class extends Component
                             <flux:button size="sm" variant="primary" icon="check" wire:click="confirmAssignment({{ $staging->id }})">{{ __('Zuordnung bestätigen') }}</flux:button>
                         </div>
                     @else
+                        @if (! empty($suggestions))
+                            {{-- KI-Vorschläge (AppFlow §2.5, ImplementationPlan §2.4) --}}
+                            <flux:text class="text-sm text-text-secondary">{{ __('Vorschläge der KI:') }}</flux:text>
+                            <div class="flex flex-col gap-2">
+                                @foreach ($suggestions as $i => $suggestion)
+                                    <div class="flex flex-wrap items-center gap-2 rounded-xl bg-surface-raised p-3" wire:key="sugg-{{ $staging->id }}-{{ $i }}">
+                                        <flux:icon.sparkles class="size-4 shrink-0 text-primary" />
+                                        <span class="font-medium text-text">{{ $suggestion['name'] ?? __('Vorhandenes Projekt') }}</span>
+                                        @if (($suggestion['type'] ?? null) === 'new')
+                                            <flux:badge size="sm" color="zinc">{{ __('neu') }}</flux:badge>
+                                        @endif
+                                        @if (filled($suggestion['reason'] ?? null))
+                                            <span class="w-full text-sm text-text-secondary md:flex-1">{{ $suggestion['reason'] }}</span>
+                                        @endif
+                                        <flux:button size="sm" variant="primary" icon="check" wire:click="acceptSuggestion({{ $staging->id }}, {{ $i }})">{{ __('Übernehmen') }}</flux:button>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @else
+                            {{-- Keine KI-Vorschläge (Klassifizierung fehlgeschlagen) → manueller Fallback. --}}
+                            <flux:text class="text-sm text-text-secondary">
+                                {{ __('Automatische Zuordnung gerade nicht verfügbar – wähle ein Lernprojekt.') }}
+                            </flux:text>
+                        @endif
+
                         <div class="flex flex-wrap items-end gap-3">
-                            <flux:select wire:model.live="assign.{{ $staging->id }}" :label="__('Lernprojekt')" class="min-w-56">
+                            <flux:select wire:model.live="assign.{{ $staging->id }}" :label="empty($suggestions) ? __('Lernprojekt') : __('Oder anderes Projekt wählen')" class="min-w-56">
                                 <flux:select.option value="">{{ __('– auswählen –') }}</flux:select.option>
                                 @foreach ($this->projects as $project)
                                     <flux:select.option value="{{ $project->id }}">{{ $project->name }}</flux:select.option>
