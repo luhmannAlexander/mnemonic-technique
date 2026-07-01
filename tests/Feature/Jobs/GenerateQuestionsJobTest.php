@@ -40,12 +40,22 @@ it('overwrites existing questions on regeneration via the unique key', function 
     expect(Question::where('knowledge_unit_id', $unit->id)->count())->toBe(2);
 });
 
-it('skips generation for manually edited units', function () {
+it('leaves existing questions untouched for a manually edited unit', function () {
+    $unit = approvedUnit(['manually_edited' => true]);
+    $kept = Question::factory()->mc()->for($unit)->create(['prompt' => 'Hand-edited prompt']);
+
+    GenerateQuestionsJob::dispatchSync($unit->id);
+
+    expect(Question::where('knowledge_unit_id', $unit->id)->count())->toBe(1)
+        ->and($kept->fresh()->prompt)->toBe('Hand-edited prompt');
+});
+
+it('still generates questions for a manually edited unit that has none yet', function () {
     $unit = approvedUnit(['manually_edited' => true]);
 
     GenerateQuestionsJob::dispatchSync($unit->id);
 
-    expect(Question::where('knowledge_unit_id', $unit->id)->count())->toBe(0);
+    expect(Question::where('knowledge_unit_id', $unit->id)->count())->toBe(2);
 });
 
 it('does nothing for a draft unit', function () {

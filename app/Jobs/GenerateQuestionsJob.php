@@ -37,7 +37,9 @@ class GenerateQuestionsJob implements ShouldQueue
 
         // Manual edits may have invalidated AI-generated questions — leave any
         // existing ones untouched rather than overwriting the user's intent.
-        if ($unit->manually_edited) {
+        // But a manually-edited unit with no questions is unpractisable, so still
+        // generate from its (edited) content when there is nothing to preserve.
+        if ($unit->manually_edited && $unit->questions()->exists()) {
             return;
         }
 
