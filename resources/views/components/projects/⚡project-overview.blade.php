@@ -50,7 +50,8 @@ new class extends Component
         </div>
 
         @if ($this->stats['approved'] > 0)
-            <flux:button variant="primary" icon="play">{{ __('Jetzt üben') }}</flux:button>
+            <flux:button variant="primary" icon="play"
+                :href="route('practice.project', $project)" wire:navigate>{{ __('Jetzt üben') }}</flux:button>
         @else
             <flux:tooltip :content="__('Es gibt noch keine bestätigten Karten zum Üben.')">
                 <flux:button variant="primary" icon="play" disabled>{{ __('Jetzt üben') }}</flux:button>

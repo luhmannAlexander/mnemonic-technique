@@ -1,13 +1,29 @@
 <?php
 
+use App\Models\KnowledgeUnit;
 use App\Models\Project;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Livewire\Livewire;
 
 use function Pest\Laravel\actingAs;
 
 uses(RefreshDatabase::class);
+
+it('links the "Jetzt üben" button to the project practice session when approved cards exist', function () {
+    Queue::fake(); // capture the observer's GenerateQuestionsJob
+    $user = User::factory()->create();
+    $project = Project::factory()->for($user)->create();
+    KnowledgeUnit::factory()->approved()->create([
+        'project_id' => $project->id, 'user_id' => $user->id, 'document_id' => null,
+    ]);
+
+    Livewire::actingAs($user)
+        ->test('projects.project-overview', ['project' => $project])
+        ->assertSee('Jetzt üben')
+        ->assertSeeHtml(route('practice.project', $project));
+});
 
 it('creates a project and redirects to its overview', function () {
     $user = User::factory()->create();
