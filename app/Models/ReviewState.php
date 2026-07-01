@@ -3,9 +3,12 @@
 namespace App\Models;
 
 use Database\Factories\ReviewStateFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Query\Builder as QueryBuilder;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Composite-PK table (knowledge_unit_id, user_id) with only an updated_at column.
@@ -50,6 +53,22 @@ class ReviewState extends Model
         'attempt_count' => 'integer',
         'correct_count' => 'integer',
     ];
+
+    /**
+     * Limit to cards whose knowledge unit has at least one generated question.
+     * SessionService::buildQueue skips question-less units, so they are not
+     * practisable — counting/selecting them would make "Jetzt üben" a dead button.
+     *
+     * @param  Builder<ReviewState>  $query
+     */
+    public function scopeWhereUnitHasQuestions(Builder $query): void
+    {
+        $query->whereExists(function (QueryBuilder $sub): void {
+            $sub->select(DB::raw('1'))
+                ->from('questions')
+                ->whereColumn('questions.knowledge_unit_id', 'review_states.knowledge_unit_id');
+        });
+    }
 
     /** @return BelongsTo<KnowledgeUnit, $this> */
     public function knowledgeUnit(): BelongsTo

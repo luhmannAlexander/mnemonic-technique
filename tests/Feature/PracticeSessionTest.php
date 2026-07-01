@@ -10,6 +10,7 @@ use App\Models\Question;
 use App\Models\ReviewState;
 use App\Models\SessionLog;
 use App\Models\User;
+use App\Models\UserSetting;
 use App\Services\SessionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
@@ -48,6 +49,29 @@ function practiceSession(User $user, string $type = 'due', int $count = 1, strin
 
     return app(SessionService::class)->start($user->id, $project->id, $type);
 }
+
+it('skips a question-less due card so it cannot shadow a practisable one at the session limit', function () {
+    $project = Project::factory()->for($this->user)->create();
+    UserSetting::updateOrCreate(['user_id' => $this->user->id], ['session_length' => 1]);
+
+    // Question-less card sorts FIRST (highest priority) — must be skipped, not fill the only slot.
+    $bad = KnowledgeUnit::factory()->approved()->create([
+        'project_id' => $project->id, 'user_id' => $this->user->id, 'document_id' => null,
+    ]);
+    ReviewState::where('knowledge_unit_id', $bad->id)->update(['due_at' => now()->subDays(2), 'priority' => 99]);
+
+    // Practisable card (has a question), lower priority.
+    $good = KnowledgeUnit::factory()->approved()->create([
+        'project_id' => $project->id, 'user_id' => $this->user->id, 'document_id' => null,
+    ]);
+    ReviewState::where('knowledge_unit_id', $good->id)->update(['due_at' => now()->subDay(), 'priority' => 1]);
+    Question::factory()->mc()->for($good)->create();
+
+    $session = app(SessionService::class)->start($this->user->id, $project->id, 'due');
+
+    expect($session->questions_total)->toBe(1)
+        ->and($session->sessionQuestions()->first()->knowledge_unit_id)->toBe($good->id);
+});
 
 it('shows the first question in the focus layout', function () {
     $session = practiceSession($this->user);

@@ -3,6 +3,7 @@
 use App\Models\Attempt;
 use App\Models\KnowledgeUnit;
 use App\Models\Project;
+use App\Models\Question;
 use App\Models\ReviewState;
 use App\Models\SessionLog;
 use App\Models\User;
@@ -18,13 +19,14 @@ beforeEach(function () {
     $this->project = Project::factory()->for($this->user)->create();
 });
 
-/** Approved unit; due in the past unless told otherwise. */
+/** Approved unit with a question (practisable); due in the past unless told otherwise. */
 function dashboardUnit(Project $project, User $user, string $dueAt = '-1 day'): KnowledgeUnit
 {
     $unit = KnowledgeUnit::factory()->approved()->create([
         'project_id' => $project->id, 'user_id' => $user->id, 'document_id' => null,
     ]);
     ReviewState::where('knowledge_unit_id', $unit->id)->update(['due_at' => now()->modify($dueAt)]);
+    Question::factory()->mc()->for($unit)->create(); // real due cards always have ≥1 question
 
     return $unit;
 }
@@ -87,6 +89,20 @@ it('restart abandons the interrupted session and redirects to a fresh one', func
         ->assertRedirect(route('practice.today'));
 
     expect($session->fresh()->status)->toBe('abandoned');
+});
+
+it('does not count a due card that has no questions as practisable', function () {
+    // Approved + due but with NO generated question — buildQueue can never use it,
+    // so it must not show up as due (otherwise "Jetzt üben" becomes a dead button).
+    $unit = KnowledgeUnit::factory()->approved()->create([
+        'project_id' => $this->project->id, 'user_id' => $this->user->id, 'document_id' => null,
+    ]);
+    ReviewState::where('knowledge_unit_id', $unit->id)->update(['due_at' => now()->subDay()]);
+
+    Livewire::actingAs($this->user)
+        ->test('dashboard')
+        ->assertSet('dueCount', 0)
+        ->assertDontSee('Jetzt üben');
 });
 
 it('does not surface another user\'s due cards', function () {

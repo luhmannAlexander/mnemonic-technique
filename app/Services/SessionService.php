@@ -74,6 +74,7 @@ class SessionService
     {
         $query = ReviewState::query()
             ->where('review_states.user_id', $userId)
+            ->whereUnitHasQuestions() // question-less units can't be queued (buildQueue skips them)
             ->join('knowledge_units', 'knowledge_units.id', '=', 'review_states.knowledge_unit_id')
             ->whereNull('knowledge_units.deleted_at')
             ->where('knowledge_units.unit_status', 'approved');
